@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @workspace/blooket-bot run build",
+  "outputDirectory": "artifacts/blooket-bot/dist",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": null
+}

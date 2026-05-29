@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Blooket Bot"
+version = "1.0.0"
+id = "artifacts/blooket-bot"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20583
+
+[services.development]
+run = "pnpm --filter @workspace/blooket-bot run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/blooket-bot", "run", "build" ]
+publicDir = "artifacts/blooket-bot/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20583"
+BASE_PATH = "/"

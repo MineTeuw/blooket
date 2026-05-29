@@ -260,15 +260,21 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function joinOneBot(gid: string, name: string, incognito: boolean): Promise<{
+async function joinOneBot(gid: string, name: string, incognito: boolean, password?: string): Promise<{
   liveApp: FirebaseApp; fbdb: Database; blook: string;
 }> {
   const res = await fetch(`${BASE}/api/blooket/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: gid, name }),
+    body: JSON.stringify({ id: gid, name, ...(password ? { password } : {}) }),
   });
-  const body = await res.json() as { success: boolean; fbToken?: string; fbShardURL?: string; msg?: string };
+  const text = await res.text();
+  let body: { success: boolean; fbToken?: string; fbShardURL?: string; msg?: string };
+  try {
+    body = JSON.parse(text) as typeof body;
+  } catch {
+    throw new Error("Server returned an unexpected response — check your game code and try again.");
+  }
   if (!body.success || !body.fbToken || !body.fbShardURL) {
     throw new Error(body.msg ?? "Failed to join");
   }
@@ -298,6 +304,7 @@ export default function App() {
   const [incognito, setIncognito] = useState(true);
   const [bypassF, setBypassF] = useState(false);
   const [fpSwitch, setFpSwitch] = useState(true);
+  const [gamePassword, setGamePassword] = useState("");
 
   // flood settings
   const [botCount, setBotCount] = useState(1);
@@ -419,7 +426,7 @@ export default function App() {
         if (fpSwitch) name = "\u0020\u0020" + name;
 
         try {
-          const { liveApp, fbdb, blook } = await joinOneBot(gid, name, incognito);
+          const { liveApp, fbdb, blook } = await joinOneBot(gid, name, incognito, gamePassword.trim() || undefined);
 
           const isFirst = firstJoin && idx === 0;
           if (isFirst) {
@@ -460,7 +467,7 @@ export default function App() {
 
     setSpawning(false);
     if (firstJoin) setStatus("Connected");
-  }, [spawning, gameCode, botCount, namePrefix, bots, bypassF, fpSwitch, incognito, showError]);
+  }, [spawning, gameCode, botCount, namePrefix, bots, bypassF, fpSwitch, incognito, gamePassword, showError]);
 
   // ── Join single bot (the main Join Game button)
   const joinGame = useCallback(async () => {
@@ -490,7 +497,7 @@ export default function App() {
     joinedRef.current = true;
 
     try {
-      const { liveApp, fbdb, blook } = await joinOneBot(gid, name, incognito);
+      const { liveApp, fbdb, blook } = await joinOneBot(gid, name, incognito, gamePassword.trim() || undefined);
 
       primaryRef.gid = gid;
       primaryRef.name = name;
@@ -529,7 +536,7 @@ export default function App() {
     } finally {
       setSpawning(false);
     }
-  }, [spawning, gameCode, nickname, bypassF, fpSwitch, incognito, showError]);
+  }, [spawning, gameCode, nickname, bypassF, fpSwitch, incognito, gamePassword, showError]);
 
   const activeBots = bots.filter((b) => b.status !== "kicked");
   const connectedCount = bots.filter((b) => b.status === "connected").length;
@@ -573,6 +580,17 @@ export default function App() {
                 placeholder="Your bot name"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && joinGame()}
+                disabled={spawning}
+              />
+            </div>
+            <div className="input-box">
+              <label>Game Password <span style={{fontWeight:"normal",opacity:.6}}>(if any)</span></label>
+              <input
+                type="text"
+                placeholder="Leave blank if none"
+                value={gamePassword}
+                onChange={(e) => setGamePassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && joinGame()}
                 disabled={spawning}
               />
@@ -713,6 +731,25 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* ── Bookmarklet Section ───────────────────────────────── */}
+        <section className="join-card" style={{ marginTop: 16 }}>
+          <h2 className="section-title">Bookmarklet</h2>
+          <p style={{ fontSize: 13, color: "#666", margin: "0 0 10px" }}>
+            Drag this button to your bookmarks bar. Click it on any page to open the bot panel without this website.
+          </p>
+          {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+          <a
+            href={`javascript:(function(){var s=document.createElement('script');s.src='${typeof window !== 'undefined' ? window.location.origin : ''}/blooket-bot.js?v=${Date.now()}';document.head.appendChild(s);})();`}
+            className="join-btn"
+            style={{ display: "inline-block", textDecoration: "none", textAlign: "center", padding: "10px 24px", cursor: "grab" }}
+            onClick={(e) => e.preventDefault()}
+          >
+            🤖 Blooket Bot — drag me to bookmarks
+          </a>
+          <p style={{ fontSize: 11, color: "#999", marginTop: 8 }}>
+            After dragging, click the bookmark on any browser tab to launch the floating bot panel.
+          </p>
+        </section>
       </main>
     </div>
   );
